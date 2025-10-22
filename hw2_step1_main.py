@@ -27,7 +27,7 @@ def monitor_images(generator, test_noise):
         ax[i, j].cla()
         ax[i, j].imshow(test_images[k, :].numpy().reshape(28, 28), cmap='gray')
 
-    save_file = "imgs/generated_images.png"
+    save_file = "gan_results/generated_images.png"
 
     plt.tight_layout()
     plt.savefig(save_file)
@@ -47,7 +47,7 @@ def monitor_losses(d_losses, d_losses_fake, g_losses, g_losses_fake, batch_size=
     plt.xlabel('epochs')
     plt.ylabel('loss')
     plt.legend()
-    plt.savefig("imgs/loss_monitoring.png")
+    plt.savefig("gan_results/loss_monitoring.png")
     plt.close()
 
 def train_main_loop(generator, discriminator, d_optimizer, g_optimizer, test_noise, num_epochs, d_freq, train_loader, dim_z, criterion, device):
@@ -74,7 +74,7 @@ def train_main_loop(generator, discriminator, d_optimizer, g_optimizer, test_noi
                 fake_images = generator(noise)
                 outputs = discriminator(fake_images)
                 # Train the generator
-                g_loss, g_loss_fake = train_generator(generator, g_optimizer, outputs, criterion)
+                g_loss, g_loss_fake = train_generator(generator, g_optimizer, outputs, criterion, device)
 
             d_losses.append(d_loss.data.detach().cpu().numpy())
             g_losses.append(g_loss.data.detach().cpu().numpy())
@@ -91,10 +91,10 @@ def main():
     batch_size = 128
     dim_z = 100
     num_test_samples = 64
-    num_epochs = None        # TODO: Set an appropriate number of epochs (e.g., 50–100+ for GANs). Try multiple values and compare results.
-    d_learning_rate = None   # TODO: Set the discriminator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
-    g_learning_rate = None   # TODO: Set the generator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
-    criterion = None         # TODO: Choose a suitable loss function. Justify your choice in the report.
+    num_epochs = 100        # TODO: Set an appropriate number of epochs (e.g., 50–100+ for GANs). Try multiple values and compare results.
+    d_learning_rate = 2e-4   # TODO: Set the discriminator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
+    g_learning_rate = 2e-4   # TODO: Set the generator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
+    criterion = torch.nn.BCEWithLogitsLoss()         # TODO: Choose a suitable loss function. Justify your choice in the report.
     d_freq = 1               # TODO: Modify this in part (c), bullet point #4 as instructed.
 
     tensor_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=(0.5, ), std=(0.5, ))])

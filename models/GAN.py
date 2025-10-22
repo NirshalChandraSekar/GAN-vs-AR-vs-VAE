@@ -3,8 +3,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 
 class Discriminator(nn.Module):
-    def _init_(self, channels = [256, 128, 64]):
-        super()._init_()
+    def __init__(self, channels = [256, 128, 64]):
+        super().__init__()
         
         ##################
         # TODO: Implement the Discriminator architecture
@@ -14,7 +14,19 @@ class Discriminator(nn.Module):
         ##################
         self.model = nn.Sequential(
             # TODO: fill in layers here
-            nn.Identity()  # placeholder
+            nn.Linear(784, channels[0]),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.5),
+
+            nn.Linear(channels[0], channels[1]),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.5),
+
+            nn.Linear(channels[1], channels[2]),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.5),
+
+            nn.Linear(channels[2], 1)
         )
 
     def forward(self, x):
@@ -24,8 +36,8 @@ class Discriminator(nn.Module):
         return out
 
 class Generator(nn.Module):
-    def _init_(self, dim_z=100, channels = [64, 128, 256]):
-        super()._init_()
+    def __init__(self, dim_z=100, channels = [64, 128, 256]):
+        super().__init__()
         self.dim_z = dim_z
 
         ##################
@@ -35,7 +47,17 @@ class Generator(nn.Module):
         ##################
         self.model = nn.Sequential(
             # TODO: fill in layers here
-            nn.Identity()  # placeholder
+            nn.Linear(self.dim_z, channels[0]),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Linear(channels[0], channels[1]),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Linear(channels[1], channels[2]),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Linear(channels[2], 784),
+            nn.Tanh()
         )
 
     def forward(self, x):
@@ -53,25 +75,26 @@ def train_discriminator(discriminator, d_optimizer, images, fake_images, criteri
     # TODO: Create labels
     # Hint: real_labels should be all 1s, fake_labels all 0s
     ############################
-    real_labels = None
-    fake_labels = None
+    real_labels = torch.ones(outputs_real.size(0), 1).to(device)
 
     ############################
     # TODO: Compute loss on real images
     ############################
-    real_loss = None
+    real_loss = criterion(outputs_real, real_labels)
 
     outputs_fake = discriminator(fake_images.detach())
+    fake_labels = torch.zeros(outputs_fake.size(0), 1).to(device)
+
 
     ############################
     # TODO: Compute loss on fake images
     ############################
-    fake_loss = None
+    fake_loss = criterion(outputs_fake, fake_labels)
 
     ############################
     # TODO: Combine real and fake loss
     ############################
-    d_loss = None
+    d_loss = real_loss + fake_loss
     
     d_loss.backward()
     d_optimizer.step()
@@ -86,15 +109,16 @@ def train_generator(generator, g_optimizer, discriminator_outputs, criterion, de
     # TODO: Generator wants to fool the discriminator
     # Hint: use real_labels = all 1s (pretend fake images are real)
     ############################
-    real_labels = None
+    real_labels = torch.ones(discriminator_outputs.size(0), 1).to(device)
 
     ############################
     # TODO: Compute generator loss
     # Hint: criterion(discriminator_outputs, real_labels)
     ############################
-    g_loss = None
+    g_loss = criterion(discriminator_outputs, real_labels)
 
     g_loss_fake = criterion(discriminator_outputs, 1 - real_labels.view(-1, 1))
+    
     g_loss.backward()
     g_optimizer.step()
 
