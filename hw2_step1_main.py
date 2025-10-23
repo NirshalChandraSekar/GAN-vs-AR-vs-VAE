@@ -91,11 +91,11 @@ def main():
     batch_size = 128
     dim_z = 100
     num_test_samples = 64
-    num_epochs = 100        # TODO: Set an appropriate number of epochs (e.g., 50–100+ for GANs). Try multiple values and compare results.
-    d_learning_rate = 2e-4   # TODO: Set the discriminator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
+    num_epochs = 300        # TODO: Set an appropriate number of epochs (e.g., 50–100+ for GANs). Try multiple values and compare results.
+    d_learning_rate = 1e-4   # TODO: Set the discriminator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
     g_learning_rate = 2e-4   # TODO: Set the generator learning rate. Experiment with different values and explain your choice in the report. 1e-5<LR<1e-3 should be a good start
     criterion = torch.nn.BCEWithLogitsLoss()         # TODO: Choose a suitable loss function. Justify your choice in the report.
-    d_freq = 1               # TODO: Modify this in part (c), bullet point #4 as instructed.
+    d_freq = 5               # TODO: Modify this in part (c), bullet point #4 as instructed.
 
     tensor_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean=(0.5, ), std=(0.5, ))])
     train_dataset = datasets.MNIST(root = "./data",	train = True, download = True,	transform = tensor_transform)    

@@ -36,7 +36,11 @@ class Discriminator(nn.Module):
         return out
 
 class Generator(nn.Module):
-    def __init__(self, dim_z=100, channels = [64, 128, 256]):
+    def __init__(self, dim_z=100, 
+                #  channels = [64, 128, 256]
+                # channels = [128, 256, 512]
+                channels = [64, 126, 256, 512]
+                 ):
         super().__init__()
         self.dim_z = dim_z
 
@@ -56,7 +60,10 @@ class Generator(nn.Module):
             nn.Linear(channels[1], channels[2]),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Linear(channels[2], 784),
+            nn.Linear(channels[2], channels[3]),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Linear(channels[3], 784),
             nn.Tanh()
         )
 

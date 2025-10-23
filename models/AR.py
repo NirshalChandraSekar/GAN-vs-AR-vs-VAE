@@ -17,12 +17,22 @@ class MaskedConv2d(nn.Conv2d):
         # Make sure to zero out all “future” pixels in raster order.
         ############################
 
+        kh, kw = self.kernel_size
+        yc, xc = kh // 2, kw // 2 # center position
+
+        self.mask.fill_(1)
+        self.mask[:, :, yc+1:, :] = 0
+        self.mask[:, :, yc, xc+1:] = 0
+
+        if mask_type == 'A':
+            self.mask[:, :, yc, xc] = 0
+
     def forward(self, x):
         ############################
         # TODO: Multiply the weight tensor (self.weight) by the mask (self.mask) before convolution.
         # Then perform normal convolution.
         ############################
-        masked_weight = None
+        masked_weight = self.weight * self.mask
         
         out = F.conv2d(x, masked_weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
         return out
@@ -40,10 +50,32 @@ class PixelCNN(nn.Module):
         # - You are also welcome to explore residual connections as original paper but not required to do so
         ############################
 
+        self.model = nn.Sequential(
+            MaskedConv2d('A', 1, 64, kernel_size=7, padding=3),
+            nn.ReLU(),
+
+            MaskedConv2d('B', 64, 64, kernel_size=7, padding=3),
+            nn.ReLU(),
+
+            MaskedConv2d('B', 64, 64, kernel_size=7, padding=3),
+            nn.ReLU(),
+
+            MaskedConv2d('B', 64, 64, kernel_size=7, padding=3),
+            nn.ReLU(),
+
+            MaskedConv2d('B', 64, 64, kernel_size=7, padding=3),
+            nn.ReLU(),
+
+            nn.Conv2d(64, 1, kernel_size=1)
+        )
+
         ############################
         # TODO: Final output layer
         # - 1x1 convolution mapping from hidden channels -> 1 channel (for binary MNIST pixels)
         ############################
+
+        # Already included in self.model above
+
 
     def forward(self, x):
         """
@@ -52,7 +84,7 @@ class PixelCNN(nn.Module):
         ############################
         # TODO: Forward pass through network
         ############################
-        out = None
+        out = self.model(x)
         return out
 
 class ConditionalMaskedConv2d(nn.Conv2d):
@@ -69,25 +101,35 @@ class ConditionalMaskedConv2d(nn.Conv2d):
         # (same as in MaskedConv2d)
         ############################
 
+        kh, kw = self.kernel_size
+        yc, xc = kh // 2, kw // 2 # center position
+
+        self.mask.fill_(1)
+        self.mask[:, :, yc+1:, :] = 0
+        self.mask[:, :, yc, xc+1:] = 0
+
+        if mask_type == 'A':
+            self.mask[:, :, yc, xc] = 0
+
         ############################
         # TODO: Add class-conditioning
         # - Create a learnable projection (V) from one-hot class labels into out_channels
         # - Store it as self.class_emb (e.g. a Linear layer)
         ############################
+        self.class_emb = nn.Linear(num_classes, out_channels)
 
     def forward(self, x, y):
         ############################
         # TODO: Multiply the weight tensor (self.weight) by the mask (self.mask) before convolution. Then perform normal convolution.
         # This is same as MaskedConv2d
         ############################
-        masked_weight = None
+        masked_weight = self.weight * self.mask
         out = F.conv2d(x, masked_weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
 
         ############################
         # TODO: Compute class-dependent bias = V*y --> Shape: (N, out_channels)
         ############################
-        cond_bias = None
-        
+        cond_bias = self.class_emb(y)
         out = out + cond_bias[:, :, None, None]  # Broadcast spatially and add to convolution output
         return out
 
@@ -102,10 +144,30 @@ class ConditionalPixelCNN(nn.Module):
         # - Add ReLU and BatchNorm as desired
         ############################
 
+        self.layers = nn.ModuleList([
+            ConditionalMaskedConv2d('A', 1, 64, kernel_size=7, padding=3, num_classes=num_classes),
+            nn.ReLU(),
+
+            ConditionalMaskedConv2d('B', 64, 64, kernel_size=7, padding=3, num_classes=num_classes),
+            nn.ReLU(),
+
+            ConditionalMaskedConv2d('B', 64, 64, kernel_size=7, padding=3, num_classes=num_classes),
+            nn.ReLU(),
+
+            ConditionalMaskedConv2d('B', 64, 64, kernel_size=7, padding=3, num_classes=num_classes),
+            nn.ReLU(),
+
+            ConditionalMaskedConv2d('B', 64, 64, kernel_size=7, padding=3, num_classes=num_classes),
+            nn.ReLU(),
+        ])
+
         ############################
         # TODO: Final output layer
         # - 1x1 conv mapping from hidden channels -> 1 channel
         ############################
+
+        self.output_conv = nn.Conv2d(64, 1, kernel_size=1)
+        
 
     def forward(self, x, y):
         """
@@ -117,5 +179,13 @@ class ConditionalPixelCNN(nn.Module):
         # - For ConditionalMaskedConv2d, pass both (x, y)
         # - For other layers, just pass x
         ############################
-        out = None
+        out = x
+        for layer in self.layers:
+            if isinstance(layer, ConditionalMaskedConv2d):
+                out = layer(out, y)
+            else:
+                out = layer(out)
+
+        out = self.output_conv(out)
+
         return out
