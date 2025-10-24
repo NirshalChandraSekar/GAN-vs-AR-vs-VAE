@@ -24,8 +24,16 @@ class VAE_model(nn.Module):
       #   (concatenated mean and log-variance, no activation after the final layer)
       ############################
       self.encoder = nn.Sequential(
-          # TODO: fill in layers here
-          nn.Identity()  # placeholder
+          nn.Linear(input_dim, hidden_dims[0]),
+          nn.LeakyReLU(),
+
+          nn.Linear(hidden_dims[0], hidden_dims[1]),
+          nn.LeakyReLU(),
+
+          nn.Linear(hidden_dims[1], hidden_dims[2]),
+          nn.LeakyReLU(),
+
+          nn.Linear(hidden_dims[2], 2 * self.z_size)
       )
       
       ############################
@@ -36,8 +44,17 @@ class VAE_model(nn.Module):
       # - Apply Sigmoid activation only on the last layer
       ############################
       self.decoder = nn.Sequential(
-          # TODO: fill in layers here
-          nn.Identity()  # placeholder
+            nn.Linear(self.z_size, hidden_dims[2]),
+            nn.LeakyReLU(),
+    
+            nn.Linear(hidden_dims[2], hidden_dims[1]),
+            nn.LeakyReLU(),
+    
+            nn.Linear(hidden_dims[1], hidden_dims[0]),
+            nn.LeakyReLU(),
+    
+            nn.Linear(hidden_dims[0], decode_dim),
+            nn.Sigmoid()
       )
 
   def encode(self, x):

@@ -28,7 +28,17 @@ def plot_latent_images(model, n, device, digit_size=28):
     plt.imshow(image, cmap='gray')
     plt.axis('Off')
     plt.tight_layout()
-    plt.savefig("imgs/VAE_generated.png")
+    plt.savefig("vae_results/VAE_generated.png")
+    plt.close()
+
+def monitor_losses(epoch_losses):
+    plt.figure(figsize=(10, 5))
+    epochs = np.arange(len(epoch_losses))
+    plt.plot(epochs, epoch_losses, label='Training Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+    plt.savefig("vae_results/loss_monitoring.png")
     plt.close()
 
 def eval(model, train_dataset, device):
@@ -52,7 +62,7 @@ def eval(model, train_dataset, device):
         axes[1, i].axis('off')
 
     plt.tight_layout()
-    plt.savefig("imgs/VAE_recon.png")
+    plt.savefig("vae_results/VAE_recon.png")
     plt.close()
 
 def loss_func(model, x, coeff):
@@ -63,6 +73,9 @@ def loss_func(model, x, coeff):
     # Think of a proper loss function to use for the reconstruction loss
     ############################
     # recon_loss = select_some_loss(output['imgs'], x, reduction='sum')
+    recon = torch.clamp(output['imgs'], 1e-6, 1 - 1e-6)
+    recon_loss = F.binary_cross_entropy(recon, x, reduction='sum')
+    recon_loss = recon_loss / x.size(0)  # average over batch
 
     ############################
     # TODO: KL divergence term (closed form)
@@ -73,18 +86,20 @@ def loss_func(model, x, coeff):
     mean = output['mean']
     logvar = output['logvar']
     var = torch.exp(logvar)
-    kl_div = None
+
+    kl_div = 0.5 * torch.sum(var + mean**2 - 1 - logvar, dim=1)
     kl_div = kl_div.mean()  # average over batch
 
     ############################
     # TODO: Combine reconstruction loss and KL term
     # Hint: divide recon_loss by batch size, then add coeff * kl_div
     ############################
-    loss = None
+    loss = recon_loss + coeff * kl_div
 
     return loss
 
 def train(dataloader, model, train_dataset, optimizer, epochs, coeff, device):
+    epoch_loss = []
     for epoch in tqdm(range(epochs), desc='Epochs'):
         running_loss = 0.0
         batch_progress = tqdm(dataloader, desc='Batches', leave=False)
@@ -101,8 +116,13 @@ def train(dataloader, model, train_dataset, optimizer, epochs, coeff, device):
             avg_loss = running_loss / len(train_dataset) * batch_size
 
         tqdm.write(f'----\nEpoch [{epoch+1}/{epochs}], Average Loss: {avg_loss:.4f}\n')
-        plot_latent_images(model, n=8, device=device)
-        eval(model, train_dataset, device)
+        epoch_loss.append(avg_loss)
+        # monitor_losses(epoch_loss)
+        
+        if (epoch + 1) % 100 == 0:
+            plot_latent_images(model, n=8, device=device)
+            eval(model, train_dataset, device)
+            monitor_losses(epoch_loss)
 
 def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -110,10 +130,10 @@ def main():
     
     batch_size = 256
     input_dim = 256
-    learning_rate = None      # TODO: Set the learning rate. Experiment with different values and explain your choice in the report. 1e-4<LR<1e-2 should be a good start  
-    epochs = None             # TODO: Set an appropriate number of epochs (e.g., 20–100+ for VAEs). Try multiple values and compare results.
-    coeff = None              # TODO: Set an appropriate KL regularization weight. Try multiple values and compare results. 1e-3<coeff<1e-0 should be a good start  
-    hidden_dims = None        # TODO: Set the channel size from the given set of values in the HW PDF e.g., [#, #, #, 4]
+    learning_rate = 1e-3      # TODO: Set the learning rate. Experiment with different values and explain your choice in the report. 1e-4<LR<1e-2 should be a good start  
+    epochs = 200             # TODO: Set an appropriate number of epochs (e.g., 20–100+ for VAEs). Try multiple values and compare results.
+    coeff = 1e-4              # TODO: Set an appropriate KL regularization weight. Try multiple values and compare results. 1e-3<coeff<1e-0 should be a good start  
+    hidden_dims = [256, 128, 64, 4]        # TODO: Set the channel size from the given set of values in the HW PDF e.g., [#, #, #, 4]
     assert hidden_dims[-1] == 4, "always use 4 as the latent dimension for generating a 2D image grid during evaluation"
     
     tensor_transform = transforms.Compose([transforms.ToTensor()])
